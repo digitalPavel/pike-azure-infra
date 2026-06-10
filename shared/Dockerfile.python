@@ -1,0 +1,26 @@
+# Python web app on gunicorn — port 8000.
+# Generic starting point: adjust the COPY lines and the gunicorn module path
+# (app:app) to match your project's layout and WSGI callable.
+
+FROM python:3.13-slim
+
+# Unbuffered output so logs appear in Container Apps Log Analytics immediately.
+# No .pyc files — the container filesystem is ephemeral.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+WORKDIR /app
+
+# Install dependencies first — cached layer, only rebuilds when requirements change.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code. Narrow this to the files your app needs at runtime.
+COPY . .
+
+ENV PORT=8000
+EXPOSE 8000
+
+# 2 workers suit a low-concurrency internal tool. Raise --timeout for slow upstreams.
+# Replace `app:app` with `<module>:<wsgi-callable>`.
+CMD ["gunicorn", "--bind=0.0.0.0:8000", "--workers=2", "--timeout=120", "app:app"]

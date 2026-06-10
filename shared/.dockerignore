@@ -1,0 +1,16 @@
+node_modules
+**/node_modules
+.next
+**/.next
+.git
+.github
+.vscode
+.claude
+infra
+docs
+*.log
+.env
+.env.local
+.env.*.local
+*.txt
+README.md

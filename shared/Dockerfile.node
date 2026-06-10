@@ -1,0 +1,51 @@
+# Next.js (standalone output) on Node 20 — port 3000.
+# Multi-stage: deps → build → runner. The runner serves the app (CMD: node server.js)
+# and can also run a migrate job (the job overrides CMD, e.g. node /app/scripts/migrate.mjs).
+#
+# Requires `output: 'standalone'` in next.config. The migration COPY lines near the
+# bottom are optional — keep them only if you run a migrate job in this image.
+
+# ---------- deps ----------
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# ---------- build ----------
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+# Keep production deps (incl. any migration CLI) for the runner stage.
+RUN npm prune --production
+
+# ---------- runner ----------
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser  --system --uid 1001 nextjs
+
+COPY --from=build --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=build --chown=nextjs:nodejs /app/.next/static     ./.next/static
+COPY --from=build --chown=nextjs:nodejs /app/public           ./public
+
+# --- Optional: migration support (delete if you don't run a migrate job here) ---
+# Full production node_modules overlays the standalone's minimal set so the migrate
+# job has its CLI/driver available, plus the schema + migration script.
+COPY --from=build --chown=nextjs:nodejs /app/node_modules ./node_modules
+# COPY --from=build --chown=nextjs:nodejs /app/prisma   ./prisma
+# COPY --from=build --chown=nextjs:nodejs /app/scripts  ./scripts
+# --------------------------------------------------------------------------------
+
+USER nextjs
+EXPOSE 3000
+
+CMD ["node", "server.js"]
