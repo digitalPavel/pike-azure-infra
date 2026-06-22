@@ -4,7 +4,11 @@ jobs:
   first-job:
     runs-on: ubuntu-latest
     steps:
-      - name: Print greeting
-        run: echo "Hello peace of shit!"
-      - name: Print goobye
-        run: echo "Done - get out!"
+      - name: Print greeting and goodbye
+        run: | 
+            echo "Hello peace of shit!"
+            echo "Bye, peace of shit!"
+      - name: Print some shit
+        run: |
+            echo "Done - get out!"
+            echo "I think you'are an asshole"
